@@ -8,12 +8,12 @@ import (
 
 // TokenInterface 单词接口
 type Token interface {
-	GetLineNumber() int // 获取行号
-	IsIdentifier() bool // 是否为标识符(变量名、函数名、类名)
-	IsNumber() bool // 是否为整型字面量
-	IsString() bool // 是否为字符串字面量
+	GetLineNumber() int      // 获取行号
+	IsIdentifier() bool      // 是否为标识符(变量名、函数名、类名)
+	IsNumber() bool          // 是否为整型字面量
+	IsString() bool          // 是否为字符串字面量
 	GetNumber() (int, error) // 获取整型字面量的值
-	GetText() string // 获取字符串字面量的值
+	GetText() string         // 获取字符串字面量的值
 }
 
 var (
@@ -71,7 +71,7 @@ type NumToken struct {
 func NewNumToken(line, value int) NumToken {
 	return NumToken{
 		AbstractToken: NewToken(line),
-		value: value,
+		value:         value,
 	}
 }
 
@@ -100,7 +100,7 @@ type IdToken struct {
 func NewIdToken(line int, id string) IdToken {
 	return IdToken{
 		AbstractToken: NewToken(line),
-		text:  id,
+		text:          id,
 	}
 }
 
@@ -123,8 +123,8 @@ type StrToken struct {
 // NewStrToken 创建StrToken对象
 func NewStrToken(line int, literal string) StrToken {
 	return StrToken{
-		AbstractToken:   NewToken(line),
-		literal: literal,
+		AbstractToken: NewToken(line),
+		literal:       literal,
 	}
 }
 
