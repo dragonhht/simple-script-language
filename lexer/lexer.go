@@ -9,7 +9,8 @@ import (
 	"strings"
 )
 
-const regexPat = `\s*((//.*)|([0-9]+)|("(\\"|\\\\|\\n|[^"])*")|[A-Z_a-z][A-Z_a-z0-9]*|==|<=|>=|&&|\|\||\p{Punct})?` // 匹配的正则表达式
+// regexPat 正则表达式,使用命名分组
+const regexPat = `\s*((?P<notes>//.*)|(?P<number>[0-9]+)|(?P<stringVal>"(\\"|\\\\|\\n|[^"])*")|(?P<string>[A-Z_a-z][A-Z_a-z0-9]*|==|<=|>=|&&|\|\||[[:punct:]]))?` // 匹配的正则表达式
 
 // Lexer 词法分析器
 type Lexer struct {
@@ -25,7 +26,7 @@ func NewLexer(reader *bufio.Scanner) *Lexer {
 	pattern, _ := regexp.Compile(regexPat)
 	return &Lexer{
 		pattern: pattern,
-		queue:   make([]Token, 10),
+		queue:   make([]Token, 0),
 		hasMore: true,
 		reader:  reader,
 	}
@@ -89,11 +90,11 @@ func (l *Lexer) readLine() error {
 		l.hasMore = false
 		return nil
 	}
-	// TODO 如何获取行号
 	pos := 0
 	endPos := len(line)
+	matcherLine := line
 	for {
-		matcherLine := line[pos:]
+		matcherLine := matcherLine[pos:]
 		if pos >= endPos {
 			break
 		}
@@ -101,7 +102,7 @@ func (l *Lexer) readLine() error {
 		// 起始匹配
 		if loc[0] == 0 {
 			l.addToken(l.lineNo, matcherLine)
-			pos = loc[1]
+			pos += loc[1]
 		} else {
 			return errors.New(fmt.Sprintf("bad token at line %d", l.lineNo))
 		}
@@ -112,22 +113,23 @@ func (l *Lexer) readLine() error {
 
 // addToken 创建并保存Token对象
 func (l *Lexer) addToken(lineNo int, lineStr string) {
-	patStr := l.pattern.FindAllString(lineStr, -1)
-	len := len(patStr)
-	if len < 1 {
-		return
-	}
-	if len > 1 && patStr[1] == "" {
-		var token Token
-		if len > 2 && patStr[2] != "" {
-			value, _ := strconv.Atoi(patStr[1])
-			token = NewNumToken(lineNo, value)
-		} else if len > 3 && patStr[3] != "" {
-			token = NewStrToken(lineNo, toStringLiteral(patStr[1]))
-		} else {
-			token = NewIdToken(lineNo, patStr[1])
+	// 命名分组
+	match := l.pattern.FindStringSubmatch(lineStr)
+	// groupNames := l.pattern.SubexpNames()
+	m := match[1]
+	if m != "" {
+		if match[2] == "" {
+			var token Token
+			if match[3] != "" {
+				value, _ := strconv.Atoi(m)
+				token = NewNumToken(lineNo, value)
+			} else if match[4] != "" {
+				token = NewStrToken(lineNo, toStringLiteral(m))
+			} else {
+				token = NewIdToken(lineNo, m)
+			}
+			l.queue = append(l.queue, token)
 		}
-		l.queue = append(l.queue, token)
 	}
 }
 
