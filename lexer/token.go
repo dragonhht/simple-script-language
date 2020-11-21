@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-// TokenInterface 单词接口
+// Token 单词接口
 type Token interface {
 	GetLineNumber() int      // 获取行号
 	IsIdentifier() bool      // 是否为标识符(变量名、函数名、类名)
@@ -21,7 +21,7 @@ var (
 	EOL = "\\n"
 )
 
-// Token 词法分析的结果(单词)
+// AbstractToken 词法分析的结果(单词)
 type AbstractToken struct {
 	lineNumber int //行号
 }
