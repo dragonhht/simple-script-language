@@ -13,6 +13,11 @@ type TreeNode interface {
 	Location() string              // 定位显示
 }
 
+// NewTreeNode 创建语法树节点
+func NewTreeNode(arg interface{}) TreeNode {
+    // TODO 待实现
+}
+
 // LeafNode 语法树叶子节点
 type LeafNode struct {
 	token Token
