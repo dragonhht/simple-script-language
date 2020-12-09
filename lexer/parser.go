@@ -37,10 +37,16 @@ func (o Operators) Add(name string, prec int, leftAssoc bool) {
 type BasicParser struct {
 	reserved  mapset.Set
 	operators Operators
+	parser Parser
+	primary Parser
 }
 
-// NewParser 创建Parser对象
-func NewParser() BasicParser {
+// NewBasicParser 创建Parser对象
+func NewBasicParser() BasicParser {
 	reserved := mapset.NewSet(";", "}", EOL)
-	return BasicParser{reserved: reserved, operators: NewOperators()}
+	return BasicParser{
+		reserved: reserved,
+		operators: NewOperators(),
+		parser: Rule(),
+	}
 }
