@@ -7,8 +7,8 @@ type precedence struct {
 	leftAssoc bool
 }
 
-func newPrecedence(value int, leftAssoc bool) precedence {
-	return precedence{
+func newPrecedence(value int, leftAssoc bool) *precedence {
+	return &precedence{
 		value, leftAssoc,
 	}
 }
@@ -20,12 +20,12 @@ const (
 
 // Operators 操作
 type Operators struct {
-	opMap map[string]precedence
+	opMap map[string]*precedence
 }
 
 // NewOperators 创建Operators对象
 func NewOperators() Operators {
-	return Operators{make(map[string]precedence)}
+	return Operators{make(map[string]*precedence)}
 }
 
 // Add 添加操作
@@ -37,16 +37,16 @@ func (o Operators) Add(name string, prec int, leftAssoc bool) {
 type BasicParser struct {
 	reserved  mapset.Set
 	operators Operators
-	parser Parser
-	primary Parser
+	parser    Parser
+	primary   Parser
 }
 
 // NewBasicParser 创建Parser对象
 func NewBasicParser() BasicParser {
 	reserved := mapset.NewSet(";", "}", EOL)
 	return BasicParser{
-		reserved: reserved,
+		reserved:  reserved,
 		operators: NewOperators(),
-		parser: Rule(),
+		parser:    Rule(),
 	}
 }

@@ -15,8 +15,8 @@ type TreeNode interface {
 
 // NewTreeNode 创建语法树节点
 func NewTreeNode(arg interface{}) TreeNode {
-    // TODO 待实现
-    return nil
+	// TODO 待实现
+	return nil
 }
 
 // LeafNode 语法树叶子节点
@@ -156,7 +156,7 @@ func (b BinaryExprNode) Operator() string {
 
 // PrimaryExpr
 type PrimaryExpr struct {
-    BranchNode
+	BranchNode
 }
 
 // PrimaryExpr
