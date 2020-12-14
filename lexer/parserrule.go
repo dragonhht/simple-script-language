@@ -162,7 +162,7 @@ func NewIdTokenParser(typ interface{}, r mapset.Set) IdTokenParser {
 
 // NumTokenParser 数值解析器
 type NumTokenParser struct {
-    AToken
+	AToken
 }
 
 // NewNumTokenParser 创建NumTokenParser
@@ -177,24 +177,24 @@ func NewNumTokenParser(typ interface{}) NumTokenParser {
 
 // StrTokenParser 字符解析器
 type StrTokenParser struct {
-    AToken
+	AToken
 }
 
 // NewStrTokenParser 创建StrTokenParser
 func NewStrTokenParser(typ interface{}) StrTokenParser {
-    aToken := NewAToken(typ)
-    strToken := StrTokenParser{aToken}
-    strToken.test = func(token Token) bool {
+	aToken := NewAToken(typ)
+	strToken := StrTokenParser{aToken}
+	strToken.test = func(token Token) bool {
 		return token.IsString()
 	}
-    return strToken
+	return strToken
 }
 
 // ExprParser 表达式元素解析器
 type ExprParser struct {
-    factory *Factory
-    ops Operators
-    parser Parser
+	factory *Factory
+	ops     Operators
+	parser  Parser
 }
 
 // NewExprParser 创建ExprParser
@@ -225,7 +225,7 @@ func (e ExprParser) doShift(lexer Lexer, left TreeNode, prec int) TreeNode {
 		panic(err)
 	}
 	tree[1] = NewLeafNode(t)
-	right := e.parser.parse(lexer);
+	right := e.parser.parse(lexer)
 	next := e.nextOperator(lexer)
 	for next != nil && e.rightIsExpr(prec, next) {
 		right = e.doShift(lexer, right, next.value)
@@ -251,7 +251,7 @@ func (e ExprParser) nextOperator(lexer Lexer) *precedence {
 func (e ExprParser) rightIsExpr(prec int, next *precedence) bool {
 	if next.leftAssoc {
 		return prec < next.value
-	} else  {
+	} else {
 		return prec <= next.value
 	}
 }
@@ -307,15 +307,15 @@ func (o OrTree) insert(p Parser) {
 
 // RepeatParser
 type RepeatParser struct {
-    parser Parser
-    onlyOnce bool
+	parser   Parser
+	onlyOnce bool
 }
 
 // NewRepeatParser
 func NewRepeatParser(parser Parser, onlyOnce bool) RepeatParser {
-    return RepeatParser {
-    	parser,
-    	onlyOnce,
+	return RepeatParser{
+		parser,
+		onlyOnce,
 	}
 }
 
@@ -497,9 +497,15 @@ func (p Parser) Repeat(parser Parser) Parser {
 	return p
 }
 
+// Expression
+func (p Parser) Expression(typ interface{}, exp Parser, ops Operators) Parser {
+	p.elements = append(p.elements, NewExprParser(typ, exp, ops))
+	return p
+}
+
 // InsertChoice
 func (p Parser) InsertChoice(parser Parser) Parser {
-    e := p.elements[0]
+	e := p.elements[0]
 	switch e.(type) {
 	case OrTree:
 		e.(OrTree).insert(parser)
@@ -509,5 +515,5 @@ func (p Parser) InsertChoice(parser Parser) Parser {
 		p.reset(nil)
 		p.Or([]Parser{parser, otherwise})
 	}
-    return p
+	return p
 }

@@ -86,6 +86,21 @@ func (v VariableNode) Name() string {
 	return v.token.GetText()
 }
 
+// StringNode
+type StringNode struct {
+	LeafNode
+}
+
+// NewStringNode 创建StringNode对象
+func NewStringNode(token Token) StringNode {
+	return StringNode{LeafNode: NewLeafNode(token)}
+}
+
+// Value 获取值
+func (s StringNode) Value() string {
+	return s.token.GetText()
+}
+
 // BranchNode 语法树树枝节点
 type BranchNode struct {
 	list []TreeNode
@@ -120,6 +135,28 @@ func (b BranchNode) Location() string {
 		}
 	}
 	return ""
+}
+
+// NegativeExpr
+type NegativeExprNode struct {
+	BranchNode
+}
+
+// NewNegativeExprNode 创建NegativeExprNode对象
+func NewNegativeExprNode(list []TreeNode) NegativeExprNode {
+	return NegativeExprNode{
+		NewBranchNode(list),
+	}
+}
+
+// Operand
+func (n NegativeExprNode) Operand() TreeNode {
+	return n.list[0]
+}
+
+// String
+func (n NegativeExprNode) String() string {
+	return fmt.Sprintf("-%v", n.Operand())
 }
 
 // BinaryExprNode 双目运算表达式节点
@@ -171,4 +208,102 @@ func (p PrimaryExpr) create(list []TreeNode) TreeNode {
 	} else {
 		return NewBranchNode(list)
 	}
+}
+
+// BlockStatementNode
+type BlockStatementNode struct {
+	BranchNode
+}
+
+// NewBlockStatementNode
+func NewBlockStatementNode(list []TreeNode) BlockStatementNode {
+	return BlockStatementNode{NewBranchNode(list)}
+}
+
+// IfStatementNode
+type IfStatementNode struct {
+	BranchNode
+}
+
+// NewIfStatementNode
+func NewIfStatementNode(list []TreeNode) IfStatementNode {
+	return IfStatementNode{NewBranchNode(list)}
+}
+
+// Condition 条件
+func (i IfStatementNode) Condition() TreeNode {
+	c, err := i.Child(0)
+	if err != nil {
+		panic(err)
+	}
+	return c
+}
+
+// ThenBlock 条件为真时的语句
+func (i IfStatementNode) ThenBlock() TreeNode {
+	c, err := i.Child(1)
+	if err != nil {
+		panic(err)
+	}
+	return c
+}
+
+// ElseBlock else语句
+func (i IfStatementNode) ElseBlock() TreeNode {
+	if i.ChildSize() > 2 {
+		c, err := i.Child(2)
+		if err != nil {
+			panic(err)
+		}
+		return c
+	}
+	return nil
+}
+
+// String
+func (i IfStatementNode) String() string {
+	return fmt.Sprintf("(if %v %v else %v)", i.Condition(), i.ThenBlock(), i.ElseBlock())
+}
+
+// WhileStatementNode
+type WhileStatementNode struct {
+	BranchNode
+}
+
+// NewWhileStatementNode
+func NewWhileStatementNode(list []TreeNode) WhileStatementNode {
+	return WhileStatementNode{NewBranchNode(list)}
+}
+
+// Condition 条件
+func (w WhileStatementNode) Condition() TreeNode {
+	c, err := w.Child(0)
+	if err != nil {
+		panic(err)
+	}
+	return c
+}
+
+// Body 条件为真时的语句
+func (w WhileStatementNode) Body() TreeNode {
+	c, err := w.Child(1)
+	if err != nil {
+		panic(err)
+	}
+	return c
+}
+
+// String
+func (w WhileStatementNode) String() string {
+	return fmt.Sprintf("(while %v %v)", w.Condition(), w.Body())
+}
+
+// NullStatementNode
+type NullStatementNode struct {
+	BranchNode
+}
+
+// NewNullStatementNode
+func NewNullStatementNode(list []TreeNode) NullStatementNode {
+	return NullStatementNode{NewBranchNode(list)}
 }
