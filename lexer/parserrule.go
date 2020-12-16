@@ -74,7 +74,7 @@ func NewSkip(pat []string) Skip {
 }
 
 // find 查找
-func find(res []TreeNode, token Token) []TreeNode {
+func (s Skip) find(res []TreeNode, token Token) []TreeNode {
 	return nil
 }
 
@@ -275,7 +275,8 @@ func NewOrTree(parsers []Parser) OrTree {
 func (o OrTree) Parse(lexer Lexer, res []TreeNode) []TreeNode {
 	p := o.choose(lexer)
 	if &p == nil {
-		panic(fmt.Sprintf("解析错误: %v\n", lexer.Peek(0)))
+		t, _ := lexer.Peek(0)
+		panic(fmt.Sprintf("解析错误: %v\n", t))
 	} else {
 		res = append(res, p.parse(lexer))
 	}
@@ -359,7 +360,7 @@ func getFactory(treeType interface{}) *Factory {
 		return nil
 	}
 	return &Factory{make0: func(arg interface{}) TreeNode {
-		return NewTreeNode(arg)
+		return NewTreeNode(treeType, arg)
 	}}
 }
 
@@ -392,7 +393,7 @@ type Parser struct {
 // NewParser 创建Parser对象
 func NewParser(treeType TreeNode) Parser {
 	return Parser{
-		elements: make([]ParserElement, 10),
+		elements: make([]ParserElement, 0),
 		factory:  getForASTListFactory(treeType),
 	}
 }
@@ -407,7 +408,7 @@ func NewParserFromParser(parser Parser) Parser {
 
 // reset 重置解析器
 func (p Parser) reset(treeType TreeNode) Parser {
-	p.elements = make([]ParserElement, 10)
+	p.elements = make([]ParserElement, 0)
 	p.factory = getForASTListFactory(treeType)
 	return p
 }

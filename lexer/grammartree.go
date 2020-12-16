@@ -14,8 +14,29 @@ type TreeNode interface {
 }
 
 // NewTreeNode 创建语法树节点
-func NewTreeNode(arg interface{}) TreeNode {
-	// TODO 待实现
+func NewTreeNode(treeType interface{}, arg interface{}) TreeNode {
+	switch treeType.(type) {
+	case PrimaryExpr:
+		return CreatePrimaryExpr(arg.([]TreeNode))
+	case NegativeExprNode:
+		return NewNegativeExprNode(arg.([]TreeNode))
+	case BlockStatementNode:
+		return NewBlockStatementNode(arg.([]TreeNode))
+	case NumberNode:
+		return NewNumberNode(arg.(Token))
+	case VariableNode:
+		return NewVariableNode(arg.(Token))
+	case StringNode:
+		return NewStringNode(arg.(Token))
+	case BinaryExprNode:
+		return NewBinaryExprNode(arg.([]TreeNode))
+	case IfStatementNode:
+		return NewIfStatementNode(arg.([]TreeNode))
+	case WhileStatementNode:
+		return NewWhileStatementNode(arg.([]TreeNode))
+	case NullStatementNode:
+		return NewNullStatementNode(arg.([]TreeNode))
+	}
 	return nil
 }
 
@@ -201,8 +222,8 @@ func NewPrimaryExpr(list []TreeNode) PrimaryExpr {
 	return PrimaryExpr{NewBranchNode(list)}
 }
 
-// create
-func (p PrimaryExpr) create(list []TreeNode) TreeNode {
+// CreatePrimaryExpr
+func CreatePrimaryExpr(list []TreeNode) TreeNode {
 	if len(list) == 1 {
 		return list[0]
 	} else {
