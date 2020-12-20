@@ -7,8 +7,8 @@ import (
 
 // ParserElement 解析器元素接口
 type ParserElement interface {
-	Parse(lexer Lexer, res []TreeNode) []TreeNode // 解析
-	Match(lexer Lexer) bool                       // 匹配
+	Parse(lexer *Lexer, res []TreeNode) []TreeNode // 解析
+	Match(lexer *Lexer) bool                       // 匹配
 }
 
 // Leaf 叶子节点解析器元素
@@ -22,7 +22,7 @@ func NewLeaf(pat []string) Leaf {
 }
 
 // Parse 解析
-func (l Leaf) Parse(lexer Lexer, res []TreeNode) []TreeNode {
+func (l Leaf) Parse(lexer *Lexer, res []TreeNode) []TreeNode {
 	t, err := lexer.Read()
 	if err != nil {
 		panic(err)
@@ -48,7 +48,7 @@ func (l Leaf) find(res []TreeNode, token Token) []TreeNode {
 }
 
 // Match 匹配
-func (l Leaf) Match(lexer Lexer) bool {
+func (l Leaf) Match(lexer *Lexer) bool {
 	t, err := lexer.Peek(0)
 	if err != nil {
 		panic(err)
@@ -75,26 +75,26 @@ func NewSkip(pat []string) Skip {
 
 // find 查找
 func (s Skip) find(res []TreeNode, token Token) []TreeNode {
-	return nil
+	return res
 }
 
 // TreeParser 树解析器
 type TreeParser struct {
-	parser Parser
+	parser *Parser
 }
 
 // NewTreeParser 创建TreeParser对象
-func NewTreeParser(p Parser) TreeParser {
+func NewTreeParser(p *Parser) TreeParser {
 	return TreeParser{p}
 }
 
 // Parse 解析
-func (t TreeParser) Parse(lexer Lexer, res []TreeNode) []TreeNode {
+func (t TreeParser) Parse(lexer *Lexer, res []TreeNode) []TreeNode {
 	return append(res, t.parser.parse(lexer))
 }
 
 // Match 匹配
-func (t TreeParser) Match(lexer Lexer) bool {
+func (t TreeParser) Match(lexer *Lexer) bool {
 	return t.parser.Match(lexer)
 }
 
@@ -114,7 +114,7 @@ func NewAToken(node interface{}) AToken {
 }
 
 // Parse 解析
-func (a AToken) Parse(lexer Lexer, res []TreeNode) []TreeNode {
+func (a AToken) Parse(lexer *Lexer, res []TreeNode) []TreeNode {
 	t, err := lexer.Read()
 	if err != nil {
 		panic(err)
@@ -129,7 +129,7 @@ func (a AToken) Parse(lexer Lexer, res []TreeNode) []TreeNode {
 }
 
 // Match 匹配
-func (a AToken) Match(lexer Lexer) bool {
+func (a AToken) Match(lexer *Lexer) bool {
 	t, err := lexer.Peek(0)
 	if err != nil {
 		panic(err)
@@ -194,11 +194,11 @@ func NewStrTokenParser(typ interface{}) StrTokenParser {
 type ExprParser struct {
 	factory *Factory
 	ops     Operators
-	parser  Parser
+	parser  *Parser
 }
 
 // NewExprParser 创建ExprParser
-func NewExprParser(typ interface{}, exp Parser, ops Operators) ExprParser {
+func NewExprParser(typ interface{}, exp *Parser, ops Operators) ExprParser {
 	return ExprParser{
 		factory: getForASTListFactory(typ),
 		ops:     ops,
@@ -207,7 +207,7 @@ func NewExprParser(typ interface{}, exp Parser, ops Operators) ExprParser {
 }
 
 // Parse 解析
-func (e ExprParser) Parse(lexer Lexer, res []TreeNode) []TreeNode {
+func (e ExprParser) Parse(lexer *Lexer, res []TreeNode) []TreeNode {
 	right := e.parser.parse(lexer)
 	prec := e.nextOperator(lexer)
 	for prec != nil {
@@ -217,7 +217,7 @@ func (e ExprParser) Parse(lexer Lexer, res []TreeNode) []TreeNode {
 	return append(res, right)
 }
 
-func (e ExprParser) doShift(lexer Lexer, left TreeNode, prec int) TreeNode {
+func (e ExprParser) doShift(lexer *Lexer, left TreeNode, prec int) TreeNode {
 	tree := make([]TreeNode, 2)
 	tree[0] = left
 	t, err := lexer.Read()
@@ -229,14 +229,15 @@ func (e ExprParser) doShift(lexer Lexer, left TreeNode, prec int) TreeNode {
 	next := e.nextOperator(lexer)
 	for next != nil && e.rightIsExpr(prec, next) {
 		right = e.doShift(lexer, right, next.value)
+		next = e.nextOperator(lexer)
 	}
 	tree = append(tree, right)
 	return e.factory.make(tree)
 }
 
 // nextOperator 下一个操作
-func (e ExprParser) nextOperator(lexer Lexer) *precedence {
-	t, err := lexer.Read()
+func (e ExprParser) nextOperator(lexer *Lexer) *precedence {
+	t, err := lexer.Peek(0)
 	if err != nil {
 		panic(err)
 	}
@@ -257,24 +258,24 @@ func (e ExprParser) rightIsExpr(prec int, next *precedence) bool {
 }
 
 // Match 匹配
-func (e ExprParser) Match(lexer Lexer) bool {
+func (e ExprParser) Match(lexer *Lexer) bool {
 	return e.parser.Match(lexer)
 }
 
 // OrTree Or逻辑解析器元素
 type OrTree struct {
-	parsers []Parser
+	parsers []*Parser
 }
 
 // NewOrTree 创建Or逻辑解析器元素
-func NewOrTree(parsers []Parser) OrTree {
+func NewOrTree(parsers []*Parser) OrTree {
 	return OrTree{parsers: parsers}
 }
 
 // Parse Or逻辑解析
-func (o OrTree) Parse(lexer Lexer, res []TreeNode) []TreeNode {
+func (o OrTree) Parse(lexer *Lexer, res []TreeNode) []TreeNode {
 	p := o.choose(lexer)
-	if &p == nil {
+	if p == nil {
 		t, _ := lexer.Peek(0)
 		panic(fmt.Sprintf("解析错误: %v\n", t))
 	} else {
@@ -284,36 +285,36 @@ func (o OrTree) Parse(lexer Lexer, res []TreeNode) []TreeNode {
 }
 
 // Match or逻辑匹配
-func (o OrTree) Match(lexer Lexer) bool {
+func (o OrTree) Match(lexer *Lexer) bool {
 	p := o.choose(lexer)
 	return p != nil
 }
 
 // choose
-func (o OrTree) choose(lexer Lexer) *Parser {
+func (o OrTree) choose(lexer *Lexer) *Parser {
 	for _, p := range o.parsers {
 		if p.Match(lexer) {
-			return &p
+			return p
 		}
 	}
 	return nil
 }
 
 // insert
-func (o OrTree) insert(p Parser) {
-	ps := make([]Parser, 1)
+func (o OrTree) insert(p *Parser) {
+	ps := make([]*Parser, 1)
 	ps[0] = p
 	o.parsers = append(ps, o.parsers...)
 }
 
 // RepeatParser
 type RepeatParser struct {
-	parser   Parser
+	parser   *Parser
 	onlyOnce bool
 }
 
 // NewRepeatParser
-func NewRepeatParser(parser Parser, onlyOnce bool) RepeatParser {
+func NewRepeatParser(parser *Parser, onlyOnce bool) RepeatParser {
 	return RepeatParser{
 		parser,
 		onlyOnce,
@@ -321,7 +322,7 @@ func NewRepeatParser(parser Parser, onlyOnce bool) RepeatParser {
 }
 
 // Parse 解析
-func (r RepeatParser) Parse(lexer Lexer, res []TreeNode) []TreeNode {
+func (r RepeatParser) Parse(lexer *Lexer, res []TreeNode) []TreeNode {
 	for r.parser.Match(lexer) {
 		t := r.parser.parse(lexer)
 		switch t.(type) {
@@ -340,7 +341,7 @@ func (r RepeatParser) Parse(lexer Lexer, res []TreeNode) []TreeNode {
 }
 
 // Match 匹配
-func (r RepeatParser) Match(lexer Lexer) bool {
+func (r RepeatParser) Match(lexer *Lexer) bool {
 	return r.parser.Match(lexer)
 }
 
@@ -391,49 +392,49 @@ type Parser struct {
 }
 
 // NewParser 创建Parser对象
-func NewParser(treeType TreeNode) Parser {
-	return Parser{
+func NewParser(treeType TreeNode) *Parser {
+	return &Parser{
 		elements: make([]ParserElement, 0),
 		factory:  getForASTListFactory(treeType),
 	}
 }
 
 // NewParserFromParser 创建Parser对象
-func NewParserFromParser(parser Parser) Parser {
-	return Parser{
+func NewParserFromParser(parser *Parser) *Parser {
+	return &Parser{
 		elements: parser.elements,
 		factory:  parser.factory,
 	}
 }
 
 // reset 重置解析器
-func (p Parser) reset(treeType TreeNode) Parser {
+func (p *Parser) reset(treeType TreeNode) *Parser {
 	p.elements = make([]ParserElement, 0)
 	p.factory = getForASTListFactory(treeType)
 	return p
 }
 
 // Rule 获取解析器对象
-func Rule() Parser {
+func Rule() *Parser {
 	return RuleByType(nil)
 }
 
 // RuleByType 获取解析器对象
-func RuleByType(treeType TreeNode) Parser {
+func RuleByType(treeType TreeNode) *Parser {
 	return NewParser(treeType)
 }
 
 // parse
-func (p Parser) parse(lexer Lexer) TreeNode {
+func (p *Parser) parse(lexer *Lexer) TreeNode {
 	result := make([]TreeNode, 0)
 	for _, e := range p.elements {
-		e.Parse(lexer, result)
+		result = e.Parse(lexer, result)
 	}
 	return p.factory.make(result)
 }
 
 // Match
-func (p Parser) Match(lexer Lexer) bool {
+func (p *Parser) Match(lexer *Lexer) bool {
 	if len(p.elements) == 0 {
 		return true
 	} else {
@@ -443,69 +444,69 @@ func (p Parser) Match(lexer Lexer) bool {
 }
 
 // Or or
-func (p Parser) Or(parsers []Parser) Parser {
+func (p *Parser) Or(parsers []*Parser) *Parser {
 	p.elements = append(p.elements, NewOrTree(parsers))
 	return p
 }
 
 // Sep
-func (p Parser) Sep(pat ...string) Parser {
+func (p *Parser) Sep(pat ...string) *Parser {
 	p.elements = append(p.elements, NewSkip(pat))
 	return p
 }
 
 // Ast
-func (p Parser) Ast(parser Parser) Parser {
+func (p *Parser) Ast(parser *Parser) *Parser {
 	p.elements = append(p.elements, NewTreeParser(parser))
 	return p
 }
 
 // Number
-func (p Parser) Number(typ interface{}) Parser {
+func (p *Parser) Number(typ interface{}) *Parser {
 	p.elements = append(p.elements, NewNumTokenParser(typ))
 	return p
 }
 
 // Identifier
-func (p Parser) Identifier(typ interface{}, r mapset.Set) Parser {
+func (p *Parser) Identifier(typ interface{}, r mapset.Set) *Parser {
 	p.elements = append(p.elements, NewIdTokenParser(typ, r))
 	return p
 }
 
 // String
-func (p Parser) String(typ interface{}) Parser {
+func (p *Parser) String(typ interface{}) *Parser {
 	p.elements = append(p.elements, NewStrTokenParser(typ))
 	return p
 }
 
 // Maybe
-func (p Parser) Maybe(parser Parser) Parser {
+func (p *Parser) Maybe(parser *Parser) *Parser {
 	p2 := NewParserFromParser(parser)
 	p2.reset(nil)
-	p.elements = append(p.elements, NewOrTree([]Parser{parser, p2}))
+	p.elements = append(p.elements, NewOrTree([]*Parser{parser, p2}))
 	return p
 }
 
 // Option
-func (p Parser) Option(parser Parser) Parser {
+func (p *Parser) Option(parser *Parser) *Parser {
 	p.elements = append(p.elements, NewRepeatParser(parser, true))
 	return p
 }
 
 // Repeat
-func (p Parser) Repeat(parser Parser) Parser {
+func (p *Parser) Repeat(parser *Parser) *Parser {
 	p.elements = append(p.elements, NewRepeatParser(parser, false))
 	return p
 }
 
 // Expression
-func (p Parser) Expression(typ interface{}, exp Parser, ops Operators) Parser {
+func (p *Parser) Expression(typ interface{}, exp *Parser, ops Operators) *Parser {
 	p.elements = append(p.elements, NewExprParser(typ, exp, ops))
 	return p
 }
 
 // InsertChoice
-func (p Parser) InsertChoice(parser Parser) Parser {
+func (p *Parser) InsertChoice(parser *Parser) *Parser {
 	e := p.elements[0]
 	switch e.(type) {
 	case OrTree:
@@ -514,7 +515,7 @@ func (p Parser) InsertChoice(parser Parser) Parser {
 	default:
 		otherwise := NewParserFromParser(p)
 		p.reset(nil)
-		p.Or([]Parser{parser, otherwise})
+		p.Or([]*Parser{parser, otherwise})
 	}
 	return p
 }

@@ -3,6 +3,7 @@ package lexer
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // TreeNode 语法树节点
@@ -11,6 +12,7 @@ type TreeNode interface {
 	ChildSize() int                // 子节点个数
 	Children() []TreeNode          // 获取子节点
 	Location() string              // 定位显示
+	String() string                // 实现String接口
 }
 
 // NewTreeNode 创建语法树节点
@@ -72,6 +74,11 @@ func (l LeafNode) Children() []TreeNode {
 // Location 定位显示
 func (l LeafNode) Location() string {
 	return fmt.Sprintf("at line %v", l.token.GetLineNumber())
+}
+
+// String 实现String方法方便打印
+func (l LeafNode) String() string {
+	return l.token.GetText()
 }
 
 // NumberNode 数值型叶子节点
@@ -156,6 +163,20 @@ func (b BranchNode) Location() string {
 		}
 	}
 	return ""
+}
+
+// String 实现String接口
+func (b BranchNode) String() string {
+	var buf strings.Builder
+	buf.WriteString("(")
+	sep := ""
+	for _, v := range b.Children() {
+		buf.WriteString(sep)
+		sep = " "
+		buf.WriteString(v.String())
+	}
+	buf.WriteString(")")
+	return buf.String()
 }
 
 // NegativeExpr
