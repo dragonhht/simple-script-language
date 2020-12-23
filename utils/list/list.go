@@ -43,8 +43,8 @@ func (a *ArrayList) Add(item interface{}) {
 
 // expansion 数组扩容
 func expansion(list []interface{}) []interface{} {
-    len := len(list)
-    newList := make([]interface{}, len + (len) / 2)
+	len := len(list)
+	newList := make([]interface{}, len+(len)/2)
 	copy(newList, list)
 	return newList
 }
@@ -57,13 +57,13 @@ func (a *ArrayList) Remove(index int) (interface{}, error) {
 	listLen := len(a.list)
 	item := a.list[index]
 	var newList []interface{}
-	if a.size - 1 < listLen / 2 {
-		newList = make([]interface{}, listLen / 2)
+	if a.size-1 < listLen/2 {
+		newList = make([]interface{}, listLen/2)
 	} else {
 		newList = make([]interface{}, listLen)
 	}
 	list1 := a.list[0:index]
-	list2 := a.list[index + 1 : a.size]
+	list2 := a.list[index+1 : a.size]
 	copy(newList, list1)
 	copy(newList[len(list1):], list2)
 	return item, nil
@@ -71,8 +71,8 @@ func (a *ArrayList) Remove(index int) (interface{}, error) {
 
 // Clear 清空
 func (a *ArrayList) Clear() {
-    a.list = make([]interface{}, 10)
-    a.size = 0
+	a.list = make([]interface{}, 10)
+	a.size = 0
 }
 
 // String
@@ -89,7 +89,7 @@ func (a *ArrayList) String() string {
 	}
 	str := buf.String()
 	if strings.HasSuffix(str, ", ") {
-		str = str[0:len(str)-2]
+		str = str[0 : len(str)-2]
 	}
 	return str
 }
@@ -103,4 +103,9 @@ func (a *ArrayList) For(handler func(k int, v interface{})) {
 			break
 		}
 	}
+}
+
+// Size 大小
+func (a *ArrayList) Size() int {
+	return a.size
 }

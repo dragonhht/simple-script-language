@@ -1,6 +1,9 @@
 package lexer
 
-import "github.com/deckarep/golang-set"
+import (
+	"github.com/deckarep/golang-set"
+	"simple-script-language/utils/list"
+)
 
 type precedence struct {
 	value     int
@@ -63,29 +66,29 @@ func NewBasicParser() BasicParser {
 	operators.Add("%", 4, LEFT)
 
 	expr0 := Rule()
-	primary := RuleByType(NewPrimaryExpr([]TreeNode{})).Or([]*Parser{
+	primary := RuleByType(NewPrimaryExpr(list.New(0))).Or([]*Parser{
 		Rule().Sep("(").Ast(expr0).Sep(")"),
 		Rule().Number(NewNumberNode(nil)),
 		Rule().Identifier(NewVariableNode(nil), reserved),
 		Rule().String(NewStringNode(nil)),
 	})
 	factor := Rule().Or([]*Parser{
-		RuleByType(NewNegativeExprNode([]TreeNode{})).Sep("-").Ast(primary),
+		RuleByType(NewNegativeExprNode(list.New(0))).Sep("-").Ast(primary),
 		primary,
 	})
-	expr := expr0.Expression(NewBinaryExprNode([]TreeNode{}), factor, operators)
+	expr := expr0.Expression(NewBinaryExprNode(list.New(0)), factor, operators)
 	statement0 := Rule()
-	block := RuleByType(NewBlockStatementNode([]TreeNode{})).Sep("{").Option(statement0).Repeat(Rule().Sep(";", EOL).Option(statement0)).Sep("}")
-	simple := RuleByType(NewPrimaryExpr([]TreeNode{})).Ast(expr)
+	block := RuleByType(NewBlockStatementNode(list.New(0))).Sep("{").Option(statement0).Repeat(Rule().Sep(";", EOL).Option(statement0)).Sep("}")
+	simple := RuleByType(NewPrimaryExpr(list.New(0))).Ast(expr)
 	statement := statement0.Or([]*Parser{
-		RuleByType(NewIfStatementNode([]TreeNode{})).Sep("if").Ast(expr).Ast(block).Option(
+		RuleByType(NewIfStatementNode(list.New(0))).Sep("if").Ast(expr).Ast(block).Option(
 			Rule().Sep("else").Ast(block)),
-		RuleByType(NewWhileStatementNode([]TreeNode{})).Sep("while").Ast(expr).Ast(block),
+		RuleByType(NewWhileStatementNode(list.New(0))).Sep("while").Ast(expr).Ast(block),
 		simple,
 	})
 	program := Rule().Or([]*Parser{
 		statement,
-		RuleByType(NewNullStatementNode([]TreeNode{})),
+		RuleByType(NewNullStatementNode(list.New(0))),
 	}).Sep(";", EOL)
 	return BasicParser{
 		reserved:   reserved,

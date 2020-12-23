@@ -3,12 +3,13 @@ package lexer
 import (
 	"fmt"
 	mapset "github.com/deckarep/golang-set"
+	"simple-script-language/utils/list"
 )
 
 // ParserElement 解析器元素接口
 type ParserElement interface {
-	Parse(lexer *Lexer, res []TreeNode) []TreeNode // 解析
-	Match(lexer *Lexer) bool                       // 匹配
+	Parse(lexer *Lexer, res *list.ArrayList) // 解析
+	Match(lexer *Lexer) bool                 // 匹配
 }
 
 // Leaf 叶子节点解析器元素
@@ -22,7 +23,7 @@ func NewLeaf(pat []string) Leaf {
 }
 
 // Parse 解析
-func (l Leaf) Parse(lexer *Lexer, res []TreeNode) []TreeNode {
+func (l Leaf) Parse(lexer *Lexer, res *list.ArrayList) {
 	t, err := lexer.Read()
 	if err != nil {
 		panic(err)
@@ -30,7 +31,8 @@ func (l Leaf) Parse(lexer *Lexer, res []TreeNode) []TreeNode {
 	if t.IsIdentifier() {
 		for _, v := range l.tokens {
 			if v == t.GetText() {
-				return l.find(res, t)
+				l.find(res, t)
+				return
 			}
 		}
 	}
@@ -39,12 +41,11 @@ func (l Leaf) Parse(lexer *Lexer, res []TreeNode) []TreeNode {
 	} else {
 		ParserError("", t)
 	}
-	return nil
 }
 
 // find 查找单词元素
-func (l Leaf) find(res []TreeNode, token Token) []TreeNode {
-	return append(res, NewLeafNode(token))
+func (l Leaf) find(res *list.ArrayList, token Token) {
+	res.Add(NewLeafNode(token))
 }
 
 // Match 匹配
@@ -74,8 +75,8 @@ func NewSkip(pat []string) Skip {
 }
 
 // find 查找
-func (s Skip) find(res []TreeNode, token Token) []TreeNode {
-	return res
+func (s Skip) find(res *list.ArrayList, token Token) {
+
 }
 
 // TreeParser 树解析器
@@ -89,8 +90,8 @@ func NewTreeParser(p *Parser) TreeParser {
 }
 
 // Parse 解析
-func (t TreeParser) Parse(lexer *Lexer, res []TreeNode) []TreeNode {
-	return append(res, t.parser.parse(lexer))
+func (t TreeParser) Parse(lexer *Lexer, res *list.ArrayList) {
+	res.Add(t.parser.parse(lexer))
 }
 
 // Match 匹配
@@ -114,17 +115,16 @@ func NewAToken(node interface{}) AToken {
 }
 
 // Parse 解析
-func (a AToken) Parse(lexer *Lexer, res []TreeNode) []TreeNode {
+func (a AToken) Parse(lexer *Lexer, res *list.ArrayList) {
 	t, err := lexer.Read()
 	if err != nil {
 		panic(err)
 	}
 	if a.test(t) {
 		leaf := a.factory.make(t)
-		return append(res, leaf)
+		res.Add(leaf)
 	} else {
 		ParserError("", t)
-		return nil
 	}
 }
 
@@ -207,31 +207,31 @@ func NewExprParser(typ interface{}, exp *Parser, ops Operators) ExprParser {
 }
 
 // Parse 解析
-func (e ExprParser) Parse(lexer *Lexer, res []TreeNode) []TreeNode {
+func (e ExprParser) Parse(lexer *Lexer, res *list.ArrayList) {
 	right := e.parser.parse(lexer)
 	prec := e.nextOperator(lexer)
 	for prec != nil {
 		right = e.doShift(lexer, right, prec.value)
 		prec = e.nextOperator(lexer)
 	}
-	return append(res, right)
+	res.Add(right)
 }
 
 func (e ExprParser) doShift(lexer *Lexer, left TreeNode, prec int) TreeNode {
-	tree := make([]TreeNode, 2)
-	tree[0] = left
+	tree := list.New(10)
+	tree.Add(left)
 	t, err := lexer.Read()
 	if err != nil {
 		panic(err)
 	}
-	tree[1] = NewLeafNode(t)
+	tree.Add(NewLeafNode(t))
 	right := e.parser.parse(lexer)
 	next := e.nextOperator(lexer)
 	for next != nil && e.rightIsExpr(prec, next) {
 		right = e.doShift(lexer, right, next.value)
 		next = e.nextOperator(lexer)
 	}
-	tree = append(tree, right)
+	tree.Add(right)
 	return e.factory.make(tree)
 }
 
@@ -273,15 +273,14 @@ func NewOrTree(parsers []*Parser) OrTree {
 }
 
 // Parse Or逻辑解析
-func (o OrTree) Parse(lexer *Lexer, res []TreeNode) []TreeNode {
+func (o OrTree) Parse(lexer *Lexer, res *list.ArrayList) {
 	p := o.choose(lexer)
 	if p == nil {
 		t, _ := lexer.Peek(0)
 		panic(fmt.Sprintf("解析错误: %v\n", t))
 	} else {
-		res = append(res, p.parse(lexer))
+		res.Add(p.parse(lexer))
 	}
-	return res
 }
 
 // Match or逻辑匹配
@@ -322,22 +321,22 @@ func NewRepeatParser(parser *Parser, onlyOnce bool) RepeatParser {
 }
 
 // Parse 解析
-func (r RepeatParser) Parse(lexer *Lexer, res []TreeNode) []TreeNode {
+func (r RepeatParser) Parse(lexer *Lexer, res *list.ArrayList) {
 	for r.parser.Match(lexer) {
 		t := r.parser.parse(lexer)
 		switch t.(type) {
 		case BranchNode:
+			if t.ChildSize() > 0 {
+				res.Add(t)
+			}
 			break
 		default:
-			if t.ChildSize() > 0 {
-				return append(res, t)
-			}
+			res.Add(t)
 		}
 		if r.onlyOnce {
 			break
 		}
 	}
-	return nil
 }
 
 // Match 匹配
@@ -371,10 +370,11 @@ func getForASTListFactory(treeType interface{}) *Factory {
 	if factory == nil {
 		factory = &Factory{make0: func(arg interface{}) TreeNode {
 			switch arg.(type) {
-			case []TreeNode:
-				results := arg.([]TreeNode)
-				if len(results) == 1 {
-					return results[0]
+			case *list.ArrayList:
+				results := arg.(*list.ArrayList)
+				if results.Size() == 1 {
+					node, _ := results.Get(0)
+					return node.(TreeNode)
 				} else {
 					return NewBranchNode(results)
 				}
@@ -387,14 +387,14 @@ func getForASTListFactory(treeType interface{}) *Factory {
 
 // Parser 解析器
 type Parser struct {
-	elements []ParserElement // 解析器元素
+	elements *list.ArrayList // 解析器元素
 	factory  *Factory        //
 }
 
 // NewParser 创建Parser对象
 func NewParser(treeType TreeNode) *Parser {
 	return &Parser{
-		elements: make([]ParserElement, 0),
+		elements: list.New(10),
 		factory:  getForASTListFactory(treeType),
 	}
 }
@@ -409,7 +409,7 @@ func NewParserFromParser(parser *Parser) *Parser {
 
 // reset 重置解析器
 func (p *Parser) reset(treeType TreeNode) *Parser {
-	p.elements = make([]ParserElement, 0)
+	p.elements = list.New(10)
 	p.factory = getForASTListFactory(treeType)
 	return p
 }
@@ -426,56 +426,58 @@ func RuleByType(treeType TreeNode) *Parser {
 
 // parse
 func (p *Parser) parse(lexer *Lexer) TreeNode {
-	result := make([]TreeNode, 0)
-	for _, e := range p.elements {
-		result = e.Parse(lexer, result)
-	}
+	result := list.New(10)
+	p.elements.For(func(k int, v interface{}) {
+		e := v.(ParserElement)
+		e.Parse(lexer, result)
+	})
 	return p.factory.make(result)
 }
 
 // Match
 func (p *Parser) Match(lexer *Lexer) bool {
-	if len(p.elements) == 0 {
+	if p.elements.Size() == 0 {
 		return true
 	} else {
-		e := p.elements[0]
+		item, _ := p.elements.Get(0)
+		e := item.(ParserElement)
 		return e.Match(lexer)
 	}
 }
 
 // Or or
 func (p *Parser) Or(parsers []*Parser) *Parser {
-	p.elements = append(p.elements, NewOrTree(parsers))
+	p.elements.Add(NewOrTree(parsers))
 	return p
 }
 
 // Sep
 func (p *Parser) Sep(pat ...string) *Parser {
-	p.elements = append(p.elements, NewSkip(pat))
+	p.elements.Add(NewSkip(pat))
 	return p
 }
 
 // Ast
 func (p *Parser) Ast(parser *Parser) *Parser {
-	p.elements = append(p.elements, NewTreeParser(parser))
+	p.elements.Add(NewTreeParser(parser))
 	return p
 }
 
 // Number
 func (p *Parser) Number(typ interface{}) *Parser {
-	p.elements = append(p.elements, NewNumTokenParser(typ))
+	p.elements.Add(NewNumTokenParser(typ))
 	return p
 }
 
 // Identifier
 func (p *Parser) Identifier(typ interface{}, r mapset.Set) *Parser {
-	p.elements = append(p.elements, NewIdTokenParser(typ, r))
+	p.elements.Add(NewIdTokenParser(typ, r))
 	return p
 }
 
 // String
 func (p *Parser) String(typ interface{}) *Parser {
-	p.elements = append(p.elements, NewStrTokenParser(typ))
+	p.elements.Add(NewStrTokenParser(typ))
 	return p
 }
 
@@ -483,31 +485,32 @@ func (p *Parser) String(typ interface{}) *Parser {
 func (p *Parser) Maybe(parser *Parser) *Parser {
 	p2 := NewParserFromParser(parser)
 	p2.reset(nil)
-	p.elements = append(p.elements, NewOrTree([]*Parser{parser, p2}))
+	p.elements.Add(NewOrTree([]*Parser{parser, p2}))
 	return p
 }
 
 // Option
 func (p *Parser) Option(parser *Parser) *Parser {
-	p.elements = append(p.elements, NewRepeatParser(parser, true))
+	p.elements.Add(NewRepeatParser(parser, true))
 	return p
 }
 
 // Repeat
 func (p *Parser) Repeat(parser *Parser) *Parser {
-	p.elements = append(p.elements, NewRepeatParser(parser, false))
+	p.elements.Add(NewRepeatParser(parser, false))
 	return p
 }
 
 // Expression
 func (p *Parser) Expression(typ interface{}, exp *Parser, ops Operators) *Parser {
-	p.elements = append(p.elements, NewExprParser(typ, exp, ops))
+	p.elements.Add(NewExprParser(typ, exp, ops))
 	return p
 }
 
 // InsertChoice
 func (p *Parser) InsertChoice(parser *Parser) *Parser {
-	e := p.elements[0]
+	item, _ := p.elements.Get(0)
+	e := item.(ParserElement)
 	switch e.(type) {
 	case OrTree:
 		e.(OrTree).insert(parser)

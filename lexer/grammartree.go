@@ -3,6 +3,7 @@ package lexer
 import (
 	"errors"
 	"fmt"
+	"simple-script-language/utils/list"
 	"strings"
 )
 
@@ -10,7 +11,7 @@ import (
 type TreeNode interface {
 	Child(n int) (TreeNode, error) // 获取该节点下第n个子节点
 	ChildSize() int                // 子节点个数
-	Children() []TreeNode          // 获取子节点
+	Children() *list.ArrayList     // 获取子节点
 	Location() string              // 定位显示
 	String() string                // 实现String接口
 }
@@ -19,11 +20,11 @@ type TreeNode interface {
 func NewTreeNode(treeType interface{}, arg interface{}) TreeNode {
 	switch treeType.(type) {
 	case PrimaryExpr:
-		return CreatePrimaryExpr(arg.([]TreeNode))
+		return CreatePrimaryExpr(arg.(*list.ArrayList))
 	case NegativeExprNode:
-		return NewNegativeExprNode(arg.([]TreeNode))
+		return NewNegativeExprNode(arg.(*list.ArrayList))
 	case BlockStatementNode:
-		return NewBlockStatementNode(arg.([]TreeNode))
+		return NewBlockStatementNode(arg.(*list.ArrayList))
 	case NumberNode:
 		return NewNumberNode(arg.(Token))
 	case VariableNode:
@@ -31,13 +32,13 @@ func NewTreeNode(treeType interface{}, arg interface{}) TreeNode {
 	case StringNode:
 		return NewStringNode(arg.(Token))
 	case BinaryExprNode:
-		return NewBinaryExprNode(arg.([]TreeNode))
+		return NewBinaryExprNode(arg.(*list.ArrayList))
 	case IfStatementNode:
-		return NewIfStatementNode(arg.([]TreeNode))
+		return NewIfStatementNode(arg.(*list.ArrayList))
 	case WhileStatementNode:
-		return NewWhileStatementNode(arg.([]TreeNode))
+		return NewWhileStatementNode(arg.(*list.ArrayList))
 	case NullStatementNode:
-		return NewNullStatementNode(arg.([]TreeNode))
+		return NewNullStatementNode(arg.(*list.ArrayList))
 	}
 	return nil
 }
@@ -45,14 +46,14 @@ func NewTreeNode(treeType interface{}, arg interface{}) TreeNode {
 // LeafNode 语法树叶子节点
 type LeafNode struct {
 	token Token
-	empty []TreeNode
+	empty *list.ArrayList
 }
 
 // NewLeafNode 创建叶子节点
 func NewLeafNode(token Token) LeafNode {
 	return LeafNode{
 		token: token,
-		empty: make([]TreeNode, 0),
+		empty: list.New(0),
 	}
 }
 
@@ -67,7 +68,7 @@ func (l LeafNode) ChildSize() int {
 }
 
 // Children 获取子节点
-func (l LeafNode) Children() []TreeNode {
+func (l LeafNode) Children() *list.ArrayList {
 	return l.empty
 }
 
@@ -131,38 +132,42 @@ func (s StringNode) Value() string {
 
 // BranchNode 语法树树枝节点
 type BranchNode struct {
-	list []TreeNode
+	list *list.ArrayList
 }
 
 // NewBranchNode 创建树枝节点
-func NewBranchNode(list []TreeNode) BranchNode {
+func NewBranchNode(list *list.ArrayList) BranchNode {
 	return BranchNode{list: list}
 }
 
 // Child 获取树枝节点下指定的子节点
 func (b BranchNode) Child(n int) (TreeNode, error) {
-	return b.list[n], nil
+	node, err := b.list.Get(n)
+	return node.(TreeNode), err
 }
 
 // ChildSize 子节点个数
 func (b BranchNode) ChildSize() int {
-	return len(b.list)
+	return b.list.Size()
 }
 
 // Children 获取子节点
-func (b BranchNode) Children() []TreeNode {
+func (b BranchNode) Children() *list.ArrayList {
 	return b.list
 }
 
 // Location 定位显示
 func (b BranchNode) Location() string {
-	for _, c := range b.list {
+	result := ""
+	b.list.For(func(k int, v interface{}) {
+		c := v.(TreeNode)
 		s := c.Location()
 		if s != "" {
-			return s
+			result = s
+			return
 		}
-	}
-	return ""
+	})
+	return result
 }
 
 // String 实现String接口
@@ -170,11 +175,11 @@ func (b BranchNode) String() string {
 	var buf strings.Builder
 	buf.WriteString("(")
 	sep := ""
-	for _, v := range b.Children() {
+	b.Children().For(func(k int, v interface{}) {
 		buf.WriteString(sep)
 		sep = " "
-		buf.WriteString(v.String())
-	}
+		buf.WriteString(v.(TreeNode).String())
+	})
 	buf.WriteString(")")
 	return buf.String()
 }
@@ -185,7 +190,7 @@ type NegativeExprNode struct {
 }
 
 // NewNegativeExprNode 创建NegativeExprNode对象
-func NewNegativeExprNode(list []TreeNode) NegativeExprNode {
+func NewNegativeExprNode(list *list.ArrayList) NegativeExprNode {
 	return NegativeExprNode{
 		NewBranchNode(list),
 	}
@@ -193,7 +198,8 @@ func NewNegativeExprNode(list []TreeNode) NegativeExprNode {
 
 // Operand
 func (n NegativeExprNode) Operand() TreeNode {
-	return n.list[0]
+	node, _ := n.list.Get(0)
+	return node.(TreeNode)
 }
 
 // String
@@ -207,7 +213,7 @@ type BinaryExprNode struct {
 }
 
 // NewBinaryExprNode 创建BinaryExprNode对象
-func NewBinaryExprNode(list []TreeNode) BinaryExprNode {
+func NewBinaryExprNode(list *list.ArrayList) BinaryExprNode {
 	return BinaryExprNode{
 		NewBranchNode(list),
 	}
@@ -215,17 +221,19 @@ func NewBinaryExprNode(list []TreeNode) BinaryExprNode {
 
 // Left 获取子节点中的左子节点
 func (b BinaryExprNode) Left() TreeNode {
-	return b.list[0]
+	node, _ := b.list.Get(0)
+	return node.(TreeNode)
 }
 
 // Right 获取子节点中的右子节点
 func (b BinaryExprNode) Right() TreeNode {
-	return b.list[2]
+	node, _ := b.list.Get(2)
+	return node.(TreeNode)
 }
 
 // Operator 获取操作符
 func (b BinaryExprNode) Operator() string {
-	node := b.list[1]
+	node, _ := b.list.Get(1)
 	switch node.(type) {
 	case LeafNode:
 		return node.(LeafNode).token.GetText()
@@ -239,14 +247,15 @@ type PrimaryExpr struct {
 }
 
 // PrimaryExpr
-func NewPrimaryExpr(list []TreeNode) PrimaryExpr {
+func NewPrimaryExpr(list *list.ArrayList) PrimaryExpr {
 	return PrimaryExpr{NewBranchNode(list)}
 }
 
 // CreatePrimaryExpr
-func CreatePrimaryExpr(list []TreeNode) TreeNode {
-	if len(list) == 1 {
-		return list[0]
+func CreatePrimaryExpr(list *list.ArrayList) TreeNode {
+	if list.Size() == 1 {
+		node, _ := list.Get(0)
+		return node.(TreeNode)
 	} else {
 		return NewBranchNode(list)
 	}
@@ -258,7 +267,7 @@ type BlockStatementNode struct {
 }
 
 // NewBlockStatementNode
-func NewBlockStatementNode(list []TreeNode) BlockStatementNode {
+func NewBlockStatementNode(list *list.ArrayList) BlockStatementNode {
 	return BlockStatementNode{NewBranchNode(list)}
 }
 
@@ -268,7 +277,7 @@ type IfStatementNode struct {
 }
 
 // NewIfStatementNode
-func NewIfStatementNode(list []TreeNode) IfStatementNode {
+func NewIfStatementNode(list *list.ArrayList) IfStatementNode {
 	return IfStatementNode{NewBranchNode(list)}
 }
 
@@ -313,13 +322,13 @@ type WhileStatementNode struct {
 }
 
 // NewWhileStatementNode
-func NewWhileStatementNode(list []TreeNode) WhileStatementNode {
+func NewWhileStatementNode(list *list.ArrayList) WhileStatementNode {
 	return WhileStatementNode{NewBranchNode(list)}
 }
 
 // Condition 条件
 func (w WhileStatementNode) Condition() TreeNode {
-	c, err := w.Child(0)
+	c, err := w.Child(1)
 	if err != nil {
 		panic(err)
 	}
@@ -328,7 +337,7 @@ func (w WhileStatementNode) Condition() TreeNode {
 
 // Body 条件为真时的语句
 func (w WhileStatementNode) Body() TreeNode {
-	c, err := w.Child(1)
+	c, err := w.Child(2)
 	if err != nil {
 		panic(err)
 	}
@@ -346,6 +355,6 @@ type NullStatementNode struct {
 }
 
 // NewNullStatementNode
-func NewNullStatementNode(list []TreeNode) NullStatementNode {
+func NewNullStatementNode(list *list.ArrayList) NullStatementNode {
 	return NullStatementNode{NewBranchNode(list)}
 }
