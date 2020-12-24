@@ -14,6 +14,7 @@ type TreeNode interface {
 	Children() *list.ArrayList     // 获取子节点
 	Location() string              // 定位显示
 	String() string                // 实现String接口
+	Eval(environment Environment) interface{} // 获取节点计算值
 }
 
 // NewTreeNode 创建语法树节点
@@ -82,6 +83,10 @@ func (l LeafNode) String() string {
 	return l.token.GetText()
 }
 
+func (l LeafNode) Eval(env Environment) interface{} {
+	panic(fmt.Sprintf("cannot eval: %v", l.String()))
+}
+
 // NumberNode 数值型叶子节点
 type NumberNode struct {
 	LeafNode
@@ -92,6 +97,11 @@ func NewNumberNode(token Token) NumberNode {
 	return NumberNode{
 		LeafNode: NewLeafNode(token),
 	}
+}
+
+// Eval 获取计算值
+func (n NumberNode) Eval(env Environment) interface{} {
+	return n.Value()
 }
 
 // Value 获取值
@@ -110,6 +120,15 @@ func NewVariableNode(token Token) VariableNode {
 	return VariableNode{LeafNode: NewLeafNode(token)}
 }
 
+// Eval 获取计算值
+func (v VariableNode) Eval(env Environment) interface{} {
+	value := env.Get(v.Name())
+	if value == nil {
+		panic(fmt.Sprintf("undefined name: %v", v.Name()))
+	}
+	return value
+}
+
 // Name 获取变量名
 func (v VariableNode) Name() string {
 	return v.token.GetText()
@@ -125,6 +144,11 @@ func NewStringNode(token Token) StringNode {
 	return StringNode{LeafNode: NewLeafNode(token)}
 }
 
+// Eval 获取计算值
+func (s StringNode) Eval(env Environment) interface{} {
+	return s.Value()
+}
+
 // Value 获取值
 func (s StringNode) Value() string {
 	return s.token.GetText()
@@ -138,6 +162,11 @@ type BranchNode struct {
 // NewBranchNode 创建树枝节点
 func NewBranchNode(list *list.ArrayList) BranchNode {
 	return BranchNode{list: list}
+}
+
+// Eval 获取计算值
+func (b BranchNode) Eval(env Environment) interface{} {
+	panic(fmt.Sprintf("cannot eval: %v", b.String()))
 }
 
 // Child 获取树枝节点下指定的子节点
@@ -196,6 +225,16 @@ func NewNegativeExprNode(list *list.ArrayList) NegativeExprNode {
 	}
 }
 
+// Eval 获取计算值
+func (n NegativeExprNode) Eval(env Environment) interface{} {
+	value := n.Operand().Eval(env)
+	switch value.(type) {
+	case int:
+		return -value.(int)
+	}
+	panic(fmt.Sprintf("bad type for -"))
+}
+
 // Operand
 func (n NegativeExprNode) Operand() TreeNode {
 	node, _ := n.list.Get(0)
@@ -219,6 +258,18 @@ func NewBinaryExprNode(list *list.ArrayList) BinaryExprNode {
 	}
 }
 
+// Eval 获取计算值
+func (b BinaryExprNode) Eval(env Environment) interface{} {
+	op := b.Operator()
+	if op == "=" {
+		right := b.Right().Eval(env)
+		return b.computeAssign(env, right)
+	}
+	left := b.Left().Eval(env)
+	right := b.Right().Eval(env)
+	return b.computeOp(left, op, right)
+}
+
 // Left 获取子节点中的左子节点
 func (b BinaryExprNode) Left() TreeNode {
 	node, _ := b.list.Get(0)
@@ -239,6 +290,79 @@ func (b BinaryExprNode) Operator() string {
 		return node.(LeafNode).token.GetText()
 	}
 	return ""
+}
+
+// computeAssign 表达式复制操作
+func (b BinaryExprNode) computeAssign(env Environment, rightVal interface{}) interface{} {
+	left := b.Left()
+	switch left.(type) {
+	case VariableNode:
+		env.Put(left.(VariableNode).Name(), rightVal)
+		return rightVal
+	}
+	panic(fmt.Sprintf("bad assignment"))
+}
+
+// computeOp 表达式计算
+func (b BinaryExprNode) computeOp(left interface{}, op string, right interface{}) interface{} {
+	nl, lok := left.(int)
+	nr, rok := left.(int)
+	if lok && rok {
+		return computeNumber(nl, op, nr)
+	}
+	if op == "+" {
+		return fmt.Sprintf("%s%s", left, right)
+	}
+	if op == "==" {
+		if left == nil {
+			if right == nil {
+				return TRUE
+			} else {
+				return FALSE
+			}
+		}
+		if left == right {
+			return TRUE
+		} else {
+			return FALSE
+		}
+	}
+	panic(fmt.Sprintf("bad type"))
+}
+
+// computeNumber 整型计算
+func computeNumber(left int, op string, right int) interface{} {
+	switch op {
+	case "+":
+		return left + right
+	case "-":
+		return left - right
+	case "*":
+		return left * right
+	case "/":
+		return left / right
+	case "%":
+		return left % right
+	case "==":
+		if left == right {
+			return TRUE
+		} else {
+			return FALSE
+		}
+	case ">":
+		if left > right {
+			return TRUE
+		} else {
+			return FALSE
+		}
+	case "<":
+		if left < right {
+			return TRUE
+		} else {
+			return FALSE
+		}
+	}
+	panic(fmt.Sprintf("bad operator"))
 }
 
 // PrimaryExpr
@@ -271,6 +395,19 @@ func NewBlockStatementNode(list *list.ArrayList) BlockStatementNode {
 	return BlockStatementNode{NewBranchNode(list)}
 }
 
+// Eval 获取计算值
+func (b BlockStatementNode) Eval(env Environment) interface{} {
+	var result interface{}
+	result = 0
+	b.Children().For(func(k int, v interface{}) {
+		_, ok := v.(NullStatementNode)
+		if !ok {
+			result = v.(TreeNode).Eval(env)
+		}
+	})
+	return result
+}
+
 // IfStatementNode
 type IfStatementNode struct {
 	BranchNode
@@ -281,9 +418,23 @@ func NewIfStatementNode(list *list.ArrayList) IfStatementNode {
 	return IfStatementNode{NewBranchNode(list)}
 }
 
+// Eval 获取计算值
+func (i IfStatementNode) Eval(env Environment) interface{} {
+	c := i.Condition().Eval(env)
+	cv, cok := c.(int)
+	if cok && cv != FALSE {
+		return i.ThenBlock().Eval(env)
+	}
+	b := i.ElseBlock()
+	if b == nil {
+		return 0
+	}
+	return b.Eval(env)
+}
+
 // Condition 条件
 func (i IfStatementNode) Condition() TreeNode {
-	c, err := i.Child(0)
+	c, err := i.Child(1)
 	if err != nil {
 		panic(err)
 	}
@@ -292,7 +443,7 @@ func (i IfStatementNode) Condition() TreeNode {
 
 // ThenBlock 条件为真时的语句
 func (i IfStatementNode) ThenBlock() TreeNode {
-	c, err := i.Child(1)
+	c, err := i.Child(2)
 	if err != nil {
 		panic(err)
 	}
@@ -301,8 +452,8 @@ func (i IfStatementNode) ThenBlock() TreeNode {
 
 // ElseBlock else语句
 func (i IfStatementNode) ElseBlock() TreeNode {
-	if i.ChildSize() > 2 {
-		c, err := i.Child(2)
+	if i.ChildSize() > 3 {
+		c, err := i.Child(3)
 		if err != nil {
 			panic(err)
 		}
@@ -324,6 +475,20 @@ type WhileStatementNode struct {
 // NewWhileStatementNode
 func NewWhileStatementNode(list *list.ArrayList) WhileStatementNode {
 	return WhileStatementNode{NewBranchNode(list)}
+}
+
+// Eval 获取计算值
+func (w WhileStatementNode) Eval(env Environment) interface{} {
+	var result interface{}
+	result = 0
+	for {
+		c := w.Condition().Eval(env)
+		cv, cok := c.(int)
+		if cok && cv != FALSE {
+			return result
+		}
+		result = w.Body().Eval(env)
+	}
 }
 
 // Condition 条件
