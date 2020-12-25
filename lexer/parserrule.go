@@ -45,6 +45,9 @@ func (l Leaf) Parse(lexer *Lexer, res *list.ArrayList) {
 
 // find 查找单词元素
 func (l Leaf) find(res *list.ArrayList, token Token) {
+	if token.GetText() == EOL {
+		return
+	}
 	res.Add(NewLeafNode(token))
 }
 

@@ -306,7 +306,7 @@ func (b BinaryExprNode) computeAssign(env Environment, rightVal interface{}) int
 // computeOp 表达式计算
 func (b BinaryExprNode) computeOp(left interface{}, op string, right interface{}) interface{} {
 	nl, lok := left.(int)
-	nr, rok := left.(int)
+	nr, rok := right.(int)
 	if lok && rok {
 		return computeNumber(nl, op, nr)
 	}
@@ -415,6 +415,12 @@ type IfStatementNode struct {
 
 // NewIfStatementNode
 func NewIfStatementNode(list *list.ArrayList) IfStatementNode {
+	if list.Size() > 0 {
+		first, _ := list.Get(0)
+		if fv,fok := first.(LeafNode); fok && fv.token.GetText() == "if" {
+			list.Remove(0)
+		}
+	}
 	return IfStatementNode{NewBranchNode(list)}
 }
 
@@ -434,7 +440,7 @@ func (i IfStatementNode) Eval(env Environment) interface{} {
 
 // Condition 条件
 func (i IfStatementNode) Condition() TreeNode {
-	c, err := i.Child(1)
+	c, err := i.Child(0)
 	if err != nil {
 		panic(err)
 	}
@@ -443,19 +449,52 @@ func (i IfStatementNode) Condition() TreeNode {
 
 // ThenBlock 条件为真时的语句
 func (i IfStatementNode) ThenBlock() TreeNode {
-	c, err := i.Child(2)
+	c, err := i.Child(1)
 	if err != nil {
 		panic(err)
+	}
+	if c.ChildSize() > 0 {
+		first, _ := c.Child(0)
+		if cv, cok := first.(LeafNode); cok && cv.token.GetText() == "{" {
+			c.Children().Remove(0)
+		}
+	}
+	if c.ChildSize() > 0 {
+		last, _ := c.Child(c.ChildSize() - 1)
+		if cv, cok := last.(LeafNode); cok && cv.token.GetText() == "}" {
+			c.Children().Remove(c.ChildSize() - 1)
+		}
 	}
 	return c
 }
 
 // ElseBlock else语句
 func (i IfStatementNode) ElseBlock() TreeNode {
-	if i.ChildSize() > 3 {
-		c, err := i.Child(3)
+	if i.ChildSize() > 2 {
+		c, err := i.Child(2)
 		if err != nil {
 			panic(err)
+		}
+		first, ferr := c.Child(0)
+		if ferr == nil {
+			if fv,fok := first.(LeafNode); fok && fv.token.GetText() == "else"  {
+				c.Children().Remove(0)
+			}
+		}
+		if c.ChildSize() > 0 {
+			block, _ := c.Child(0)
+			if block.ChildSize() > 0 {
+				first, _ := block.Child(0)
+				if cv, cok := first.(LeafNode); cok && cv.token.GetText() == "{" {
+					block.Children().Remove(0)
+				}
+			}
+			if block.ChildSize() > 0 {
+				last, _ := block.Child(block.ChildSize() - 1)
+				if cv, cok := last.(LeafNode); cok && cv.token.GetText() == "}" {
+					block.Children().Remove(block.ChildSize() - 1)
+				}
+			}
 		}
 		return c
 	}
@@ -474,6 +513,12 @@ type WhileStatementNode struct {
 
 // NewWhileStatementNode
 func NewWhileStatementNode(list *list.ArrayList) WhileStatementNode {
+	if list.Size() > 0 {
+		first, _ := list.Get(0)
+		if fv,fok := first.(LeafNode); fok && fv.token.GetText() == "while" {
+			list.Remove(0)
+		}
+	}
 	return WhileStatementNode{NewBranchNode(list)}
 }
 
@@ -484,7 +529,7 @@ func (w WhileStatementNode) Eval(env Environment) interface{} {
 	for {
 		c := w.Condition().Eval(env)
 		cv, cok := c.(int)
-		if cok && cv != FALSE {
+		if cok && cv == FALSE {
 			return result
 		}
 		result = w.Body().Eval(env)
@@ -493,7 +538,7 @@ func (w WhileStatementNode) Eval(env Environment) interface{} {
 
 // Condition 条件
 func (w WhileStatementNode) Condition() TreeNode {
-	c, err := w.Child(1)
+	c, err := w.Child(0)
 	if err != nil {
 		panic(err)
 	}
@@ -502,9 +547,21 @@ func (w WhileStatementNode) Condition() TreeNode {
 
 // Body 条件为真时的语句
 func (w WhileStatementNode) Body() TreeNode {
-	c, err := w.Child(2)
+	c, err := w.Child(1)
 	if err != nil {
 		panic(err)
+	}
+	if c.ChildSize() > 0 {
+		first, _ := c.Child(0)
+		if cv, cok := first.(LeafNode); cok && cv.token.GetText() == "{" {
+			c.Children().Remove(0)
+		}
+	}
+	if c.ChildSize() > 0 {
+		last, _ := c.Child(c.ChildSize() - 1)
+		if cv, cok := last.(LeafNode); cok && cv.token.GetText() == "}" {
+			c.Children().Remove(c.ChildSize() - 1)
+		}
 	}
 	return c
 }

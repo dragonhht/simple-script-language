@@ -66,6 +66,8 @@ func (a *ArrayList) Remove(index int) (interface{}, error) {
 	list2 := a.list[index+1 : a.size]
 	copy(newList, list1)
 	copy(newList[len(list1):], list2)
+	a.list = newList
+	a.size--
 	return item, nil
 }
 
