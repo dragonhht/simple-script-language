@@ -415,12 +415,6 @@ type IfStatementNode struct {
 
 // NewIfStatementNode
 func NewIfStatementNode(list *list.ArrayList) IfStatementNode {
-	if list.Size() > 0 {
-		first, _ := list.Get(0)
-		if fv,fok := first.(LeafNode); fok && fv.token.GetText() == "if" {
-			list.Remove(0)
-		}
-	}
 	return IfStatementNode{NewBranchNode(list)}
 }
 
@@ -453,18 +447,6 @@ func (i IfStatementNode) ThenBlock() TreeNode {
 	if err != nil {
 		panic(err)
 	}
-	if c.ChildSize() > 0 {
-		first, _ := c.Child(0)
-		if cv, cok := first.(LeafNode); cok && cv.token.GetText() == "{" {
-			c.Children().Remove(0)
-		}
-	}
-	if c.ChildSize() > 0 {
-		last, _ := c.Child(c.ChildSize() - 1)
-		if cv, cok := last.(LeafNode); cok && cv.token.GetText() == "}" {
-			c.Children().Remove(c.ChildSize() - 1)
-		}
-	}
 	return c
 }
 
@@ -474,27 +456,6 @@ func (i IfStatementNode) ElseBlock() TreeNode {
 		c, err := i.Child(2)
 		if err != nil {
 			panic(err)
-		}
-		first, ferr := c.Child(0)
-		if ferr == nil {
-			if fv,fok := first.(LeafNode); fok && fv.token.GetText() == "else"  {
-				c.Children().Remove(0)
-			}
-		}
-		if c.ChildSize() > 0 {
-			block, _ := c.Child(0)
-			if block.ChildSize() > 0 {
-				first, _ := block.Child(0)
-				if cv, cok := first.(LeafNode); cok && cv.token.GetText() == "{" {
-					block.Children().Remove(0)
-				}
-			}
-			if block.ChildSize() > 0 {
-				last, _ := block.Child(block.ChildSize() - 1)
-				if cv, cok := last.(LeafNode); cok && cv.token.GetText() == "}" {
-					block.Children().Remove(block.ChildSize() - 1)
-				}
-			}
 		}
 		return c
 	}
@@ -513,12 +474,6 @@ type WhileStatementNode struct {
 
 // NewWhileStatementNode
 func NewWhileStatementNode(list *list.ArrayList) WhileStatementNode {
-	if list.Size() > 0 {
-		first, _ := list.Get(0)
-		if fv,fok := first.(LeafNode); fok && fv.token.GetText() == "while" {
-			list.Remove(0)
-		}
-	}
 	return WhileStatementNode{NewBranchNode(list)}
 }
 
@@ -550,18 +505,6 @@ func (w WhileStatementNode) Body() TreeNode {
 	c, err := w.Child(1)
 	if err != nil {
 		panic(err)
-	}
-	if c.ChildSize() > 0 {
-		first, _ := c.Child(0)
-		if cv, cok := first.(LeafNode); cok && cv.token.GetText() == "{" {
-			c.Children().Remove(0)
-		}
-	}
-	if c.ChildSize() > 0 {
-		last, _ := c.Child(c.ChildSize() - 1)
-		if cv, cok := last.(LeafNode); cok && cv.token.GetText() == "}" {
-			c.Children().Remove(c.ChildSize() - 1)
-		}
 	}
 	return c
 }
