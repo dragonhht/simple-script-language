@@ -79,7 +79,6 @@ func NewSkip(pat []string) Skip {
 
 // find 查找
 func (s Skip) find(res *list.ArrayList, token Token) {
-	println()
 }
 
 // Parse 解析
@@ -87,9 +86,6 @@ func (s Skip) Parse(lexer *Lexer, res *list.ArrayList) {
 	t, err := lexer.Read()
 	if err != nil {
 		panic(err)
-	}
-	if t.GetText() == "{" {
-		println()
 	}
 	if t.IsIdentifier() {
 		for _, v := range s.tokens {

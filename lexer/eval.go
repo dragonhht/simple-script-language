@@ -3,18 +3,18 @@ package lexer
 // Environment 环境对象接口
 type Environment interface {
 	Put(name string, value interface{}) // 保存对象
-	Get(name string) interface{} // 获取值
+	Get(name string) interface{}        // 获取值
 }
 
 // BasicEnvironment 基础环境对象实现
 type BasicEnvironment struct {
-    values map[string]interface{}
+	values map[string]interface{}
 }
 
 // NewBasicEnv 创建BasicEnvironment对象
 func NewBasicEnv() BasicEnvironment {
-    return BasicEnvironment{
-    	make(map[string]interface{}),
+	return BasicEnvironment{
+		make(map[string]interface{}),
 	}
 }
 
@@ -29,6 +29,6 @@ func (b BasicEnvironment) Get(name string) interface{} {
 }
 
 const (
-	TRUE = 1
+	TRUE  = 1
 	FALSE = 0
 )

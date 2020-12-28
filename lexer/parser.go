@@ -109,3 +109,39 @@ func NewBasicParser() BasicParser {
 func (b BasicParser) Parser(lexer *Lexer) TreeNode {
 	return b.program.parse(lexer)
 }
+
+// FuncParser 函数解析器
+type FuncParser struct {
+	BasicParser
+	param     *Parser
+	params    *Parser
+	paramList *Parser
+	def       *Parser
+	args      *Parser
+	postfix   *Parser
+}
+
+// NewFuncParser 创建FuncParser
+func NewFuncParser() FuncParser {
+	bp := NewBasicParser()
+	param := Rule().Identifier(nil, bp.reserved)
+	params := RuleByType(NewParameterListNode(list.New(0))).Ast(param).Repeat(Rule().Sep(",").Ast(param))
+	paramList := Rule().Sep("(").Maybe(params).Sep(")")
+	def := RuleByType(NewDefStatementNode(list.New(0))).Sep("def").Identifier(nil, bp.reserved).Ast(paramList).Ast(bp.block)
+	args := RuleByType(NewArgumentsNode(list.New(0))).Ast(bp.expr).Repeat(Rule().Sep(",").Ast(bp.expr))
+	postfix := Rule().Sep("(").Maybe(args).Sep(")")
+
+	bp.reserved.Add(")")
+	bp.primary.Repeat(postfix)
+	bp.simple.Option(args)
+	bp.program.InsertChoice(def)
+	return FuncParser{
+		BasicParser: bp,
+		param:       param,
+		params:      params,
+		paramList:   paramList,
+		def:         def,
+		args:        args,
+		postfix:     postfix,
+	}
+}

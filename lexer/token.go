@@ -18,7 +18,7 @@ type Token interface {
 
 var (
 	EOF = NewToken(1)
-	EOL = "\\n"
+	EOL = "\n"
 )
 
 // AbstractToken 词法分析的结果(单词)

@@ -9,11 +9,11 @@ import (
 
 // TreeNode 语法树节点
 type TreeNode interface {
-	Child(n int) (TreeNode, error) // 获取该节点下第n个子节点
-	ChildSize() int                // 子节点个数
-	Children() *list.ArrayList     // 获取子节点
-	Location() string              // 定位显示
-	String() string                // 实现String接口
+	Child(n int) (TreeNode, error)            // 获取该节点下第n个子节点
+	ChildSize() int                           // 子节点个数
+	Children() *list.ArrayList                // 获取子节点
+	Location() string                         // 定位显示
+	String() string                           // 实现String接口
 	Eval(environment Environment) interface{} // 获取节点计算值
 }
 
@@ -522,4 +522,85 @@ type NullStatementNode struct {
 // NewNullStatementNode
 func NewNullStatementNode(list *list.ArrayList) NullStatementNode {
 	return NullStatementNode{NewBranchNode(list)}
+}
+
+// ParameterListNode 参数列表
+type ParameterListNode struct {
+	BranchNode
+}
+
+// NewParameterListNode
+func NewParameterListNode(list *list.ArrayList) ParameterListNode {
+	return ParameterListNode{NewBranchNode(list)}
+}
+
+// Name 参数名
+func (p ParameterListNode) Name(index int) string {
+	node, err := p.Child(index)
+	if err != nil {
+		panic(err)
+	}
+	return node.(LeafNode).token.GetText()
+}
+
+// Size 数量
+func (p ParameterListNode) Size() int {
+	return p.ChildSize()
+}
+
+// DefStatementNode 函数定义节点
+type DefStatementNode struct {
+	BranchNode
+}
+
+// NewDefStatementNode 创建DefStatementNode
+func NewDefStatementNode(list *list.ArrayList) DefStatementNode {
+	return DefStatementNode{NewBranchNode(list)}
+}
+
+// Name 参数名
+func (d DefStatementNode) Name() string {
+	node, err := d.Child(0)
+	if err != nil {
+		panic(err)
+	}
+	return node.(LeafNode).token.GetText()
+}
+
+// Parameters 参数信息
+func (d DefStatementNode) Parameters() ParameterListNode {
+	node, err := d.Child(1)
+	if err != nil {
+		panic(err)
+	}
+	return node.(ParameterListNode)
+}
+
+// Body 函数体信息
+func (d DefStatementNode) Body() BlockStatementNode {
+	node, err := d.Child(2)
+	if err != nil {
+		panic(err)
+	}
+	return node.(BlockStatementNode)
+}
+
+// String 实现String
+func (d DefStatementNode) String() string {
+	return fmt.Sprintf("(def %v %v %v)", d.Name(), d.Parameters(), d.Body())
+}
+
+// ArgumentsNode 参数
+type ArgumentsNode struct {
+	BranchNode
+}
+
+// NewArgumentsNode 创建Arguments对象
+func NewArgumentsNode(list *list.ArrayList) ArgumentsNode {
+	return ArgumentsNode{NewBranchNode(list)}
+}
+
+// Size 数量
+func (a ArgumentsNode) Size() int {
+	return a.ChildSize()
 }
