@@ -40,6 +40,12 @@ func NewTreeNode(treeType interface{}, arg interface{}) TreeNode {
 		return NewWhileStatementNode(arg.(*list.ArrayList))
 	case NullStatementNode:
 		return NewNullStatementNode(arg.(*list.ArrayList))
+	case ParameterListNode:
+		return NewParameterListNode(arg.(*list.ArrayList))
+	case DefStatementNode:
+		return NewDefStatementNode(arg.(*list.ArrayList))
+	case ArgumentsNode:
+		return NewArgumentsNode(arg.(*list.ArrayList))
 	}
 	return nil
 }
@@ -385,6 +391,42 @@ func CreatePrimaryExpr(list *list.ArrayList) TreeNode {
 	}
 }
 
+// Operand 获取操作数
+func (p PrimaryExpr) Operand() TreeNode {
+	n, err := p.Child(0)
+	if err != nil {
+		panic(err)
+	}
+	return n
+}
+
+// Postfix
+func (p PrimaryExpr) Postfix(nest int) Postfix {
+	n, err := p.Child(p.ChildSize() - nest - 1)
+	if err != nil {
+		panic(err)
+	}
+	return n.(Postfix)
+}
+
+// HasPostfix
+func (p PrimaryExpr) HasPostfix(nest int) bool {
+	return p.ChildSize()-nest > 1
+}
+
+// Eval 获取计算值
+func (p PrimaryExpr) Eval(env Environment) interface{} {
+	return p.EvalSubExpr(env, 0)
+}
+
+func (p PrimaryExpr) EvalSubExpr(env Environment, nest int) interface{} {
+	if p.HasPostfix(nest) {
+		t := p.EvalSubExpr(env, nest+1)
+		return p.Postfix(nest).EvalSub(env, t)
+	}
+	return p.Operand().Eval(env)
+}
+
 // BlockStatementNode
 type BlockStatementNode struct {
 	BranchNode
@@ -548,6 +590,10 @@ func (p ParameterListNode) Size() int {
 	return p.ChildSize()
 }
 
+func (p ParameterListNode) EvalSub(env Environment, index int, value interface{}) {
+	env.PutNew(p.Name(index), value)
+}
+
 // DefStatementNode 函数定义节点
 type DefStatementNode struct {
 	BranchNode
@@ -590,14 +636,52 @@ func (d DefStatementNode) String() string {
 	return fmt.Sprintf("(def %v %v %v)", d.Name(), d.Parameters(), d.Body())
 }
 
+// Eval 获取计算值
+func (d DefStatementNode) Eval(env Environment) interface{} {
+	env.PutNew(d.Name(), NewFunction(d.Parameters(), d.Body(), env))
+	return d.Name()
+}
+
+// Postfix
+type Postfix struct {
+	BranchNode
+	EvalSub func(environment Environment, value interface{}) interface{}
+}
+
+// NewPostfix
+func NewPostfix(list *list.ArrayList) Postfix {
+	return Postfix{
+		NewBranchNode(list),
+		nil,
+	}
+}
+
 // ArgumentsNode 参数
 type ArgumentsNode struct {
-	BranchNode
+	Postfix
 }
 
 // NewArgumentsNode 创建Arguments对象
 func NewArgumentsNode(list *list.ArrayList) ArgumentsNode {
-	return ArgumentsNode{NewBranchNode(list)}
+	node := ArgumentsNode{NewPostfix(list)}
+	node.EvalSub = func(env Environment, value interface{}) interface{} {
+		fv, fok := value.(Function)
+		if !fok {
+			panic(fmt.Sprintf("bad function %v", node))
+		}
+		params := fv.parameters
+		if node.Size() != params.Size() {
+			panic(fmt.Sprintf("bad number of arguments %v", node))
+		}
+		newEnv := fv.makeEnv()
+		num := 0
+		node.Children().For(func(k int, v interface{}) {
+			params.EvalSub(newEnv, num, v.(TreeNode).Eval(env))
+			num++
+		})
+		return fv.Body().Eval(env)
+	}
+	return node
 }
 
 // Size 数量
